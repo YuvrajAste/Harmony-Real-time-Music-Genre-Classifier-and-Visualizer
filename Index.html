@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome To! Yuvraj Music Classifier</title>
+    <style>
+        body {
+            background-image: url(https://i.pinimg.com/originals/d6/68/ab/d668abc72809303852c27275e6a56775.gif);
+            background-size: cover;
+            background-position: center;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #333333;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            color: #000000;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .result a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .result a:hover {
+            text-decoration: underline;
+        }
+        canvas {
+            margin-top: 20px;
+            background-color: #000;
+            border-radius: 5px;
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+    <script>
+        function resetForm() {
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome!! Let's Know what are you Listening to</h1>
+        <form action="/predict" method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".wav" required>
+            <div>
+                <button type="submit">Check</button>
+                <button type="button" onclick="resetForm()">Reset</button>
+            </div>
+        </form>
+        <div class="result">
+            {% if prediction %}
+                <p><strong>Predicted Genre:</strong> 
+                   <a href="{{ britannica_url }}" target="_blank">{{ prediction }}</a>
+                </p>
+
+                <!-- Audio Player -->
+                <audio id="audioPlayer" controls>
+                    <source src="{{ file_url }}" type="audio/wav">
+                    Your browser does not support the audio element.
+                </audio>
+
+                <!-- Canvas for Audio Visualization -->
+                <canvas id="visualizer" width="350" height="200"></canvas>
+
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- JavaScript for Audio Visualization -->
+    <script>
+        const audio = document.getElementById('audioPlayer');
+        const canvas = document.getElementById('visualizer');
+        const canvasContext = canvas.getContext('2d');
+
+        // Web Audio API Context
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const audioSource = audioContext.createMediaElementSource(audio);
+
+        // Connect the audio element to the analyser and then to the destination (output)
+        audioSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        analyser.fftSize = 2048;  // FFT size for frequency analysis
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        // Function to draw the audio waveform
+        function draw() {
+            requestAnimationFrame(draw);
+            analyser.getByteTimeDomainData(dataArray);
+
+            // Clear the canvas
+            canvasContext.fillStyle = 'rgb(0, 0, 0)';
+            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Line properties
+            canvasContext.lineWidth = 2;
+            canvasContext.strokeStyle = 'rgb(0, 255, 0)';
+
+            // Begin the path
+            canvasContext.beginPath();
+            const sliceWidth = canvas.width * 1.0 / bufferLength;
+            let x = 0;
+
+            // Loop over data and plot the waveform
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+
+                if (i === 0) {
+                    canvasContext.moveTo(x, y);
+                } else {
+                    canvasContext.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            canvasContext.lineTo(canvas.width, canvas.height / 2);
+            canvasContext.stroke();
+        }
+
+        // Start drawing
+        draw();
+
+        // Resume the AudioContext on audio play
+        audio.onplay = function() {
+            audioContext.resume();
+        };
+    </script>
+</body>
+</html>
